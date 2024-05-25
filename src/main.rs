@@ -1,0 +1,132 @@
+mod cli;
+mod config;
+mod dependency;
+mod theme;
+mod utils;
+
+use cli::ConfigCli;
+use config::Config;
+use dependency::Dependency;
+use utils::*;
+
+use config::{add_config, list_configs, remove_config};
+use dependency::{add_dependency, list_dependencies, remove_dependency};
+use theme::*;
+
+use clap::Parser;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+
+#[derive(Serialize, Deserialize)]
+enum ThemeStatus {
+    InProgress,
+    Finished,
+    GitCommited,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Device(String);
+
+#[derive(Serialize, Deserialize)]
+struct Theme {
+    name: String,
+    device: Device,
+    global_dependencies: Vec<Dependency>,
+    configs: Vec<Config>,
+    status: ThemeStatus,
+}
+
+#[derive(Debug)]
+enum CommandResult {
+    DependencyThemeList(ConfigResult<Vec<String>>),
+    ConfigList(ConfigResult<Vec<Config>>),
+    AddRemove(ConfigResult<()>),
+}
+
+fn main() -> ConfigResult<()> {
+    let config_cli = ConfigCli::parse();
+    #[allow(deprecated)]
+    let base_dir: String = get_base_dir()?;
+
+    match Path::exists(Path::new(&base_dir)) {
+        true => (),
+        false => match std::fs::create_dir(base_dir.clone()) {
+            Ok(_) => (),
+            Err(x) => panic!("{}", x),
+        },
+    }
+
+    let current_theme_path = &(base_dir + "/current_theme.toml");
+    let current_theme_path = Path::new(current_theme_path);
+    match Path::exists(current_theme_path) {
+        true => (),
+        false => match std::fs::File::create(current_theme_path) {
+            Ok(_) => (),
+            Err(x) => panic!("{}", x),
+        },
+    }
+
+    use cli::ConfigSubCommands::*;
+    let options = config_cli.command;
+    let result: CommandResult = match options {
+        Dependency { action, .. } => {
+            use cli::DependencyActions::*;
+            match action {
+                Remove {
+                    theme_name,
+                    dependency_name,
+                } => CommandResult::AddRemove(remove_dependency(theme_name, dependency_name)),
+                Add {
+                    theme_name,
+                    dependency_name,
+                    config_name,
+                } => CommandResult::AddRemove(add_dependency(
+                    theme_name,
+                    config_name,
+                    dependency_name,
+                )),
+                List {
+                    theme_name,
+                    config_name,
+                } => CommandResult::DependencyThemeList(list_dependencies(config_name, theme_name)),
+            }
+        }
+        Config { action, .. } => {
+            use cli::ConfigActions::*;
+            match action {
+                Remove {
+                    config_name,
+                    theme_name,
+                } => CommandResult::AddRemove(remove_config(config_name, theme_name)),
+                Add {
+                    theme_name,
+                    config_name,
+                    file,
+                    device_name,
+                } => CommandResult::AddRemove(add_config(
+                    config_name,
+                    device_name.clone(),
+                    theme_name,
+                    file.to_path_buf(),
+                )),
+                List {
+                    theme_name,
+                    device_name,
+                } => CommandResult::ConfigList(list_configs(theme_name, device_name)),
+            }
+        }
+        Theme { action, .. } => {
+            use cli::ThemeActions::*;
+            match action {
+                Remove { name } => CommandResult::AddRemove(remove_theme(name)),
+                Create { name, base } => CommandResult::AddRemove(create_theme(name, base)),
+                Use { name } => CommandResult::AddRemove(use_theme(name)),
+                List => CommandResult::DependencyThemeList(list_themes()),
+            }
+        }
+    };
+
+    println!("{:?}", result);
+
+    Ok(())
+}
