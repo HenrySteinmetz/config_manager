@@ -29,17 +29,14 @@ pub enum ConfigSubCommands {
 #[derive(Subcommand, Clone)]
 pub enum DependencyActions {
     Remove {
-        theme_name: String,
         dependency_name: String,
     },
     Add {
-        theme_name: String,
         dependency_name: String,
         /// Links dependency to the config
         config_name: Option<String>,
     },
     List {
-        theme_name: String,
         /// Lists only the dependencies of the provided config
         config_name: String,
     },
@@ -49,18 +46,15 @@ pub enum DependencyActions {
 pub enum ConfigActions {
     /// Moves the original config back if no other theme uses a config with the same name
     Remove {
-        theme_name: String,
         config_name: String,
     },
     /// Moves the original config file while replacing it with a symlink
     Add {
-        theme_name: String,
         config_name: String,
         file: PathBuf,
         device_name: Option<String>,
     },
     List {
-        theme_name: String,
         device_name: Option<String>,
     },
 }
@@ -78,7 +72,8 @@ pub enum ThemeActions {
     /// Links all the used config files to the according folders
     Use {
         name: String,
-        force: Option<bool>,
+        #[arg(short, long, default_value_t = false)]
+        force: bool,
         device: Option<String>,
     },
     List,

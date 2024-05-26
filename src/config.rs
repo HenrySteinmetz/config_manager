@@ -124,6 +124,7 @@ pub fn add_config(
     Ok(())
 }
 
+// TODO: remove symlinks to old files and move them back instead
 pub fn remove_config(name: String, theme: String) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &theme;
 

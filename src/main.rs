@@ -45,7 +45,6 @@ enum CommandResult {
 
 fn main() -> ConfigResult<()> {
     let config_cli = ConfigCli::parse();
-    #[allow(deprecated)]
     let base_dir: String = get_base_dir()?;
 
     match Path::exists(Path::new(&base_dir)) {
@@ -71,13 +70,12 @@ fn main() -> ConfigResult<()> {
     let result: CommandResult = match options {
         Dependency { action, .. } => {
             use cli::DependencyActions::*;
+            let theme_name = get_current_theme()?;
             match action {
                 Remove {
-                    theme_name,
                     dependency_name,
                 } => CommandResult::AddRemove(remove_dependency(theme_name, dependency_name)),
                 Add {
-                    theme_name,
                     dependency_name,
                     config_name,
                 } => CommandResult::AddRemove(add_dependency(
@@ -86,20 +84,18 @@ fn main() -> ConfigResult<()> {
                     dependency_name,
                 )),
                 List {
-                    theme_name,
                     config_name,
                 } => CommandResult::DependencyThemeList(list_dependencies(config_name, theme_name)),
             }
         }
         Config { action, .. } => {
             use cli::ConfigActions::*;
+            let theme_name = get_current_theme()?;
             match action {
                 Remove {
                     config_name,
-                    theme_name,
                 } => CommandResult::AddRemove(remove_config(config_name, theme_name)),
                 Add {
-                    theme_name,
                     config_name,
                     file,
                     device_name,
@@ -110,7 +106,6 @@ fn main() -> ConfigResult<()> {
                     file.to_path_buf(),
                 )),
                 List {
-                    theme_name,
                     device_name,
                 } => CommandResult::ConfigList(list_configs(theme_name, device_name)),
             }
@@ -120,7 +115,7 @@ fn main() -> ConfigResult<()> {
             match action {
                 Remove { name } => CommandResult::AddRemove(remove_theme(name)),
                 Create { name, base } => CommandResult::AddRemove(create_theme(name, base)),
-                Use { name, force, device } => CommandResult::AddRemove(use_theme(name, force.unwrap_or(false), device)),
+                Use { name, force, device } => CommandResult::AddRemove(use_theme(name, force, device)),
                 List => CommandResult::DependencyThemeList(list_themes()),
             }
         }

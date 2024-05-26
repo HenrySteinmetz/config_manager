@@ -1,15 +1,11 @@
-use crate::config::{self, Config, ConfigFile};
+use crate::config::{Config, ConfigFile};
 use crate::dependency::DependencyFile;
-use crate::utils::{copy_dir_all, err, get_base_dir};
+use crate::utils::{copy_dir_all, err, get_base_dir, CurrentTheme};
 use crate::ConfigResult;
 
-use std::io::{Read, Write};
+use std::fs::File;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-struct CurrentTheme(String);
 
 pub fn create_theme(name: String, base: Option<String>) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &name;
@@ -110,7 +106,6 @@ pub fn remove_theme(name: String) -> ConfigResult<()> {
         copy_dir_all(unsaved_config.conf_location, unsaved_config.symlink)?;
     }
 
-
     Ok(std::fs::remove_dir_all(theme_path)?)
 }
 
@@ -121,11 +116,27 @@ fn apply_config(config: &Config, force: &bool) -> ConfigResult<()> {
     if config.conf_location.is_dir() && force == &false {
        return err!(format!("{} is an already used directory location. You can overwrite it with the --force flag.", config.conf_location.to_string_lossy())); 
     }
-    copy_dir_all(config.conf_location, config.symlink);
+    copy_dir_all(config.conf_location.clone(), config.symlink.clone())?;
     Ok(())
 }
 
-// Todo!
+// Change the current theme file to the new theme
+fn change_current_theme(name: String) -> ConfigResult<()> {
+    let current_theme_path = get_base_dir()? + "current_theme.toml";
+
+    if !Path::new(&current_theme_path).exists() {
+        File::create(current_theme_path.clone())?;
+    }
+
+    let mut file = std::fs::OpenOptions::new().write(true).open(current_theme_path)?;
+    let contents = toml::to_string(&CurrentTheme { current_theme: name })?;
+
+    file.write_all(contents.as_bytes())?;
+    file.flush()?;
+
+    Ok(())
+}
+
 pub fn use_theme(name: String, force: bool, device: Option<String>) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &name;
     
@@ -137,13 +148,22 @@ pub fn use_theme(name: String, force: bool, device: Option<String>) -> ConfigRes
     let file_contents = std::fs::read(config_file_path)?;
     let config_file: ConfigFile = toml::from_str(std::str::from_utf8(&file_contents)?)?;
 
+    change_current_theme(name)?;
+
     for config in config_file.globals {
-        apply_config(&config, &force);
+        apply_config(&config, &force)?;
     }
 
     if device.is_some() {
-        for config in config_file.device_bounds.into_iter().filter(|x| x.0 == device.unwrap()).map(|x| x.1) {
-            apply_config(&config, &force);
+        let device_configs: Vec<Config> = config_file
+            .device_bounds
+            .iter()
+            .filter(|x| x.0 == device.clone().unwrap())
+            .map(|x| x.1.clone())
+            .collect(); 
+
+        for config in device_configs {
+            apply_config(&config, &force)?;
         }
     }
 
