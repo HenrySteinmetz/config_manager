@@ -120,7 +120,7 @@ fn main() -> ConfigResult<()> {
             match action {
                 Remove { name } => CommandResult::AddRemove(remove_theme(name)),
                 Create { name, base } => CommandResult::AddRemove(create_theme(name, base)),
-                Use { name } => CommandResult::AddRemove(use_theme(name)),
+                Use { name, force, device } => CommandResult::AddRemove(use_theme(name, force.unwrap_or(false), device)),
                 List => CommandResult::DependencyThemeList(list_themes()),
             }
         }

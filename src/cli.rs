@@ -78,6 +78,8 @@ pub enum ThemeActions {
     /// Links all the used config files to the according folders
     Use {
         name: String,
+        force: Option<bool>,
+        device: Option<String>,
     },
     List,
 }

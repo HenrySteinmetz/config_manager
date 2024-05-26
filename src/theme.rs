@@ -1,4 +1,4 @@
-use crate::config::{Config, ConfigFile};
+use crate::config::{self, Config, ConfigFile};
 use crate::dependency::DependencyFile;
 use crate::utils::{copy_dir_all, err, get_base_dir};
 use crate::ConfigResult;
@@ -56,9 +56,6 @@ pub fn list_themes() -> ConfigResult<Vec<String>> {
     Ok(ret)
 }
 
-// Todo: check if any other theme has any configs with the same name.
-// IF yes: remove these configs
-// ELSE: move the configs back to their original locations
 pub fn remove_theme(name: String) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &name;
 
@@ -117,7 +114,38 @@ pub fn remove_theme(name: String) -> ConfigResult<()> {
     Ok(std::fs::remove_dir_all(theme_path)?)
 }
 
+fn apply_config(config: &Config, force: &bool) -> ConfigResult<()> {
+    if config.conf_location.is_file() && force == &false {
+       return err!(format!("{} is an already used file location. You can overwrite it with the --force flag.", config.conf_location.to_string_lossy())); 
+    }
+    if config.conf_location.is_dir() && force == &false {
+       return err!(format!("{} is an already used directory location. You can overwrite it with the --force flag.", config.conf_location.to_string_lossy())); 
+    }
+    copy_dir_all(config.conf_location, config.symlink);
+    Ok(())
+}
+
 // Todo!
-pub fn use_theme(name: String) -> ConfigResult<()> {
+pub fn use_theme(name: String, force: bool, device: Option<String>) -> ConfigResult<()> {
+    let theme_path = get_base_dir()? + &name;
+    
+    if !Path::new(&theme_path).exists() {
+        return err!("Invalid theme name!");
+    }
+
+    let config_file_path = theme_path.clone() + "/configs.toml";
+    let file_contents = std::fs::read(config_file_path)?;
+    let config_file: ConfigFile = toml::from_str(std::str::from_utf8(&file_contents)?)?;
+
+    for config in config_file.globals {
+        apply_config(&config, &force);
+    }
+
+    if device.is_some() {
+        for config in config_file.device_bounds.into_iter().filter(|x| x.0 == device.unwrap()).map(|x| x.1) {
+            apply_config(&config, &force);
+        }
+    }
+
     Ok(())
 }

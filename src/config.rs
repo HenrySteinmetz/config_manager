@@ -41,7 +41,14 @@ pub fn list_configs(theme: String, device: Option<String>) -> ConfigResult<Vec<C
             .map(|x| x.1.clone())
             .collect())
     } else {
-        Ok(config_file.globals)
+        let mut all_configs: Vec<Config> = config_file.globals;
+        all_configs.extend(
+            config_file
+               .device_bounds
+               .into_iter()
+               .map(|x| x.1)
+               .collect::<Vec<Config>>());
+        Ok(all_configs)
     }
 }
 
