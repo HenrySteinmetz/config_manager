@@ -24,6 +24,11 @@ pub enum ConfigSubCommands {
         #[command(subcommand)]
         action: ThemeActions,
     },
+
+    Git {
+        #[command(subcommand)]
+        action: GitActions,
+    }
 }
 
 #[derive(Subcommand, Clone)]
@@ -39,7 +44,7 @@ pub enum DependencyActions {
     List {
         /// Lists only the dependencies of the provided config
         config_name: String,
-    },
+    }
 }
 
 #[derive(Subcommand, Clone)]
@@ -56,7 +61,7 @@ pub enum ConfigActions {
     },
     List {
         device_name: Option<String>,
-    },
+    }
 }
 
 #[derive(Subcommand, Clone)]
@@ -76,5 +81,19 @@ pub enum ThemeActions {
         force: bool,
         device: Option<String>,
     },
-    List,
+    List
+}
+
+
+#[derive(Subcommand, Clone)]
+pub enum GitActions {
+    SetUrl {
+        url: String,
+    },
+    InstallTheme {
+        url: String,
+    },
+    Push,
+    Pull
+
 }

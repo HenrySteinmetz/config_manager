@@ -3,6 +3,7 @@ mod config;
 mod dependency;
 mod theme;
 mod utils;
+mod git;
 
 use cli::ConfigCli;
 use config::Config;
@@ -12,6 +13,7 @@ use utils::*;
 use config::{add_config, list_configs, remove_config};
 use dependency::{add_dependency, list_dependencies, remove_dependency};
 use theme::*;
+use git::*;
 
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -117,6 +119,15 @@ fn main() -> ConfigResult<()> {
                 Create { name, base } => CommandResult::AddRemove(create_theme(name, base)),
                 Use { name, force, device } => CommandResult::AddRemove(use_theme(name, force, device)),
                 List => CommandResult::DependencyThemeList(list_themes()),
+            }
+        },
+        Git { action,.. } => {
+            use cli::GitActions::*;
+            match action {
+                SetUrl { url } => CommandResult::AddRemove(set_url(url)),
+                InstallTheme { url } => CommandResult::AddRemove(install_theme(url)),
+                Push => CommandResult::AddRemove(push()),
+                Pull => CommandResult::AddRemove(pull()),
             }
         }
     };
