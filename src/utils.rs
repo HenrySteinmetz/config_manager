@@ -21,7 +21,7 @@ macro_rules! try_read_file {
     ($path: expr) => {
         match std::fs::read($path) {
             Ok(file) => file,
-            Err(err) => return Err(ConfigCliError::FsReadError(err))
+            Err(err) => return Err(ConfigCliError::FsReadError(err)),
         }
     };
 }
@@ -31,32 +31,29 @@ macro_rules! try_parse_toml {
     ($content: expr, $type: ty) => {
         match toml::from_str::<$type>(&$content) {
             Ok(toml) => toml,
-            Err(err) => return Err(ConfigCliError::DeserializeError(err))
+            Err(err) => return Err(ConfigCliError::DeserializeError(err)),
         }
     };
 }
 
-
 macro_rules! try_read_and_parse {
-    ($path: expr, $type: ty) => {
-        {
-            use crate::{try_read_file, try_parse_toml};
+    ($path: expr, $type: ty) => {{
+        use crate::{try_parse_toml, try_read_file};
 
-            let file_contents = try_read_file!($path);
-            let string = match std::str::from_utf8(&file_contents) {
-                Ok(string) => string,
-                Err(err) => return Err(ConfigCliError::StringConversionError(err)),
-            }; 
-            try_parse_toml!(string, $type)
-        }
-    };
+        let file_contents = try_read_file!($path);
+        let string = match std::str::from_utf8(&file_contents) {
+            Ok(string) => string,
+            Err(err) => return Err(ConfigCliError::StringConversionError(err)),
+        };
+        try_parse_toml!(string, $type)
+    }};
 }
 
 macro_rules! try_create_file {
     ($path: expr) => {
         match std::fs::File::create(&$path) {
             Ok(_) => (),
-            Err(err) => return Err(ConfigCliError::FileCreationError(err))
+            Err(err) => return Err(ConfigCliError::FileCreationError(err)),
         }
     };
 }
@@ -71,7 +68,6 @@ macro_rules! try_symlink {
     };
 }
 
-
 #[macro_export]
 macro_rules! try_rename {
     ($src:expr, $dst:expr) => {
@@ -84,29 +80,26 @@ macro_rules! try_rename {
 
 #[macro_export]
 macro_rules! try_write_file {
-    ($location:expr, $content:expr) => {
-        {
-            let mut file_handle = match std::fs::OpenOptions::new().write(true).open($location) {
-                Ok(f) => f,
-                Err(err) => return Err(ConfigCliError::FsWriteError(err)),
-            };
-            let content_string = match toml::to_string($content) {
-                Ok(s) => s,
-                Err(err) => return Err(ConfigCliError::SerializeError(err)),
-            };
+    ($location:expr, $content:expr) => {{
+        let mut file_handle = match std::fs::OpenOptions::new().write(true).open($location) {
+            Ok(f) => f,
+            Err(err) => return Err(ConfigCliError::FsWriteError(err)),
+        };
+        let content_string = match toml::to_string($content) {
+            Ok(s) => s,
+            Err(err) => return Err(ConfigCliError::SerializeError(err)),
+        };
 
-            match file_handle.write_all(content_string.as_bytes()) {
-                Ok(_) => (),
-                Err(err) => return Err(ConfigCliError::FsWriteError(err)),
-            }
-
-            match file_handle.flush() {
-                Ok(_) => (),
-                Err(err) => return Err(ConfigCliError::FsWriteError(err)),
-            }
-
+        match file_handle.write_all(content_string.as_bytes()) {
+            Ok(_) => (),
+            Err(err) => return Err(ConfigCliError::FsWriteError(err)),
         }
-    };
+
+        match file_handle.flush() {
+            Ok(_) => (),
+            Err(err) => return Err(ConfigCliError::FsWriteError(err)),
+        }
+    }};
 }
 
 #[macro_export]
@@ -139,16 +132,26 @@ macro_rules! try_delete_recursive {
     };
 }
 
+#[macro_export]
+macro_rules! try_read_dir {
+    ($path: expr) => {{
+        let read_dir: ConfigResult<std::fs::ReadDir> = match std::fs::read_dir($path) {
+            Ok(dir) => Ok(dir),
+            Err(err) => return Err(ConfigCliError::FsReadError(err)),
+        };
+        read_dir
+    }};
+}
+
 // This allows the macros to be used out side of the file
-pub(crate) use try_create_file; 
-pub(crate) use try_read_and_parse; 
-pub(crate) use try_symlink; 
-pub(crate) use try_rename; 
-pub(crate) use try_write_file;
 pub(crate) use try_copy_recursive;
+pub(crate) use try_create_file;
 pub(crate) use try_delete_recursive;
-
-
+pub(crate) use try_read_and_parse;
+pub(crate) use try_read_dir;
+pub(crate) use try_rename;
+pub(crate) use try_symlink;
+pub(crate) use try_write_file;
 
 pub fn get_current_theme() -> ConfigResult<String> {
     let base_dir = get_base_dir()? + "current_theme.toml";

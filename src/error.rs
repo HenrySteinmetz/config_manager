@@ -12,18 +12,19 @@ pub enum ConfigCliError {
     DeserializeError(toml::de::Error),
     SerializeError(toml::ser::Error),
     StringConversionError(std::str::Utf8Error),
-    // Cli Error 
+    // Cli Error
     ShellInitError(std::io::Error),
     // Internal error
     InvalidThemeName(String),
     InvalidConfigName(String),
+    InvalidConfigLocation(String),
     InvalidDependencyName(String),
+    ConfigLocationUsed(String),
     NoPackageWithName(String),
     DependencyAlreadyExists(String),
     UnableToFindHomeDir,
     NoThemeSelecected,
 }
-
 
 impl std::fmt::Display for ConfigCliError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -43,6 +44,8 @@ impl std::fmt::Display for ConfigCliError {
             InvalidThemeName(err) => write!(f, "Invalid Theme Name:  \n{}", err),
             InvalidConfigName(err) => write!(f, "Invalid Config Name: \n{}", err),
             InvalidDependencyName(err) => write!(f, "Invalid Dependency Name: \n{}", err),
+            InvalidConfigLocation(err) => write!(f, "Invalid Config Location: \n{}", err),
+            ConfigLocationUsed(err) => write!(f, "Config Location {} already used", err),
             NoPackageWithName(err) => write!(f, "No Package with name: \n{}", err),
             DependencyAlreadyExists(err) => write!(f, "Dependency already exists: \n{}", err),
             UnableToFindHomeDir => write!(f, "Unable to find home directory"),
@@ -69,10 +72,12 @@ impl std::error::Error for ConfigCliError {
             InvalidThemeName(_) => None,
             InvalidConfigName(_) => None,
             InvalidDependencyName(_) => None,
+            InvalidConfigLocation(_) => None,
+            ConfigLocationUsed(_) => None,
             NoPackageWithName(_) => None,
             DependencyAlreadyExists(_) => None,
-            UnableToFindHomeDir => None, 
-            NoThemeSelecected => None, 
+            UnableToFindHomeDir => None,
+            NoThemeSelecected => None,
         }
     }
 }

@@ -2,9 +2,11 @@ use crate::config::{Config, ConfigFile};
 use crate::dependency::DependencyFile;
 use crate::error::ConfigCliError;
 use crate::utils::{copy_dir_all, get_base_dir, CurrentTheme};
-use crate::{try_copy_recursive, try_create_file, try_write_file, ConfigResult};
+use crate::{
+    try_copy_recursive, try_create_file, try_delete, try_delete_recursive, try_read_and_parse,
+    try_write_file, ConfigResult,
+};
 
-use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -17,26 +19,29 @@ pub fn create_theme(name: String, base: Option<String>) -> ConfigResult<()> {
 
     match std::fs::create_dir(theme_path.clone()) {
         Ok(_) => (),
-        Err(err) => return Err(ConfigCliError::FileCreationError(err))
+        Err(err) => return Err(ConfigCliError::FileCreationError(err)),
     }
 
     match base {
         Some(base) => {
             let read_dir = match std::fs::read_dir(get_base_dir()? + &base) {
                 Ok(dir) => dir,
-                Err(err) => return Err(ConfigCliError::FsReadError(err))
+                Err(err) => return Err(ConfigCliError::FsReadError(err)),
             };
             for file in read_dir {
                 let file = match file {
                     Ok(file) => file,
-                    Err(err) => return Err(ConfigCliError::FsReadError(err))
+                    Err(err) => return Err(ConfigCliError::FsReadError(err)),
                 };
                 try_copy_recursive!(file.path(), theme_path.clone());
             }
         }
         None => {
             try_create_file!(theme_path.clone() + "/dependencies.toml");
-            try_write_file!(theme_path.clone() + "/dependencies.toml", &DependencyFile::empty());
+            try_write_file!(
+                theme_path.clone() + "/dependencies.toml",
+                &DependencyFile::empty()
+            );
 
             try_create_file!(theme_path.clone() + "/config.toml");
             try_write_file!(theme_path.clone() + "/config.toml", &ConfigFile::empty());
@@ -51,14 +56,13 @@ pub fn list_themes() -> ConfigResult<Vec<String>> {
 
     let read_dir = match std::fs::read_dir(theme_path) {
         Ok(dir) => dir,
-        Err(err) => return Err(ConfigCliError::FsReadError(err))
+        Err(err) => return Err(ConfigCliError::FsReadError(err)),
     };
-
 
     for theme in read_dir {
         let theme_path = match theme {
             Ok(path) => path.path(),
-            Err(err) => return Err(ConfigCliError::FsReadError(err))
+            Err(err) => return Err(ConfigCliError::FsReadError(err)),
         };
         if theme_path.clone().is_dir() {
             ret.push(theme_path.to_str().unwrap().to_owned());
@@ -71,9 +75,10 @@ pub fn list_themes() -> ConfigResult<Vec<String>> {
 pub fn remove_theme(name: String) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &name;
 
-    let config_file_contents = std::fs::read(Path::new(&(theme_path.clone() + "configs.toml")))?;
-    let configs_to_remove: ConfigFile =
-        toml::from_str(std::str::from_utf8(&config_file_contents)?)?;
+    let configs_to_remove = try_read_and_parse!(
+        Path::new(&(theme_path.clone() + "configs.toml")),
+        ConfigFile
+    );
 
     let mut all_configs: Vec<Config> = configs_to_remove.globals;
 
@@ -93,10 +98,17 @@ pub fn remove_theme(name: String) -> ConfigResult<()> {
 
     let mut saved_configs: Vec<Config> = vec![];
 
-    for theme in std::fs::read_dir(get_base_dir()?)? {
-        let theme_path = theme?.path();
-        let configs: ConfigFile =
-            toml::from_str(std::str::from_utf8(&std::fs::read(theme_path)?)?)?;
+    let read_dir = match std::fs::read_dir(get_base_dir()?) {
+        Ok(dir) => dir,
+        Err(err) => return Err(ConfigCliError::FsReadError(err)),
+    };
+
+    for theme in read_dir {
+        let theme_path = match theme {
+            Ok(path) => path.path(),
+            Err(err) => return Err(ConfigCliError::FsReadError(err)),
+        };
+        let configs = try_read_and_parse!(theme_path, ConfigFile);
 
         saved_configs.extend(
             configs
@@ -115,29 +127,28 @@ pub fn remove_theme(name: String) -> ConfigResult<()> {
     // Put the configs that aren't used anywhere else back into their original location
     for unsaved_config in unsaved_configs {
         if unsaved_config.active {
-            std::fs::remove_file(unsaved_config.symlink.clone())?;
+            try_delete!(unsaved_config.symlink.clone());
         }
 
-        copy_dir_all(unsaved_config.conf_location, unsaved_config.symlink)?;
+        try_copy_recursive!(unsaved_config.conf_location, unsaved_config.symlink);
     }
 
-    Ok(std::fs::remove_dir_all(theme_path)?)
+    try_delete_recursive!(theme_path);
+    Ok(())
 }
 
 fn apply_config(config: &Config, force: &bool) -> ConfigResult<()> {
     if config.conf_location.is_file() && force == &false {
-        return err!(format!(
-            "{} is an already used file location. You can overwrite it with the --force flag.",
-            config.conf_location.to_string_lossy()
+        return Err(ConfigCliError::InvalidConfigLocation(
+            config.conf_location.to_string_lossy().to_string(),
         ));
     }
     if config.conf_location.is_dir() && force == &false {
-        return err!(format!(
-            "{} is an already used directory location. You can overwrite it with the --force flag.",
-            config.conf_location.to_string_lossy()
+        return Err(ConfigCliError::ConfigLocationUsed(
+            config.conf_location.to_string_lossy().to_string(),
         ));
     }
-    copy_dir_all(config.conf_location.clone(), config.symlink.clone())?;
+    try_copy_recursive!(config.conf_location.clone(), config.symlink.clone());
     Ok(())
 }
 
@@ -146,18 +157,15 @@ fn change_current_theme(name: String) -> ConfigResult<()> {
     let current_theme_path = get_base_dir()? + "current_theme.toml";
 
     if !Path::new(&current_theme_path).exists() {
-        File::create(current_theme_path.clone())?;
+        try_create_file!(current_theme_path.clone());
     }
 
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .open(current_theme_path)?;
-    let contents = toml::to_string(&CurrentTheme {
-        current_theme: name,
-    })?;
-
-    file.write_all(contents.as_bytes())?;
-    file.flush()?;
+    try_write_file!(
+        current_theme_path.clone(),
+        &CurrentTheme {
+            current_theme: name
+        }
+    );
 
     Ok(())
 }
@@ -166,12 +174,11 @@ pub fn use_theme(name: String, force: bool, device: Option<String>) -> ConfigRes
     let theme_path = get_base_dir()? + &name;
 
     if !Path::new(&theme_path).exists() {
-        return err!("Invalid theme name!");
+        return Err(ConfigCliError::InvalidThemeName(name));
     }
 
     let config_file_path = theme_path.clone() + "/configs.toml";
-    let file_contents = std::fs::read(config_file_path)?;
-    let config_file: ConfigFile = toml::from_str(std::str::from_utf8(&file_contents)?)?;
+    let config_file = try_read_and_parse!(config_file_path, ConfigFile);
 
     change_current_theme(name)?;
 

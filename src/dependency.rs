@@ -1,7 +1,7 @@
 use crate::config::{Config, ConfigFile};
-use crate::{try_read_and_parse, try_write_file};
-use crate::utils::{get_base_dir, ConfigResult};
 use crate::error::ConfigCliError;
+use crate::utils::{get_base_dir, ConfigResult};
+use crate::{try_read_and_parse, try_write_file};
 
 use std::io::Write;
 use std::process::Command;
@@ -15,8 +15,8 @@ impl TryFrom<String> for Dependency {
     type Error = ConfigCliError;
     fn try_from(value: String) -> ConfigResult<Self> {
         let output = match Command::new("yay").arg("-Ssq").arg(value.clone()).output() {
-                Ok(cli) => cli.stdout,
-                Err(err) => return Err(ConfigCliError::ShellInitError(err))
+            Ok(cli) => cli.stdout,
+            Err(err) => return Err(ConfigCliError::ShellInitError(err)),
         };
 
         let results: Vec<String> = match std::str::from_utf8(&output) {

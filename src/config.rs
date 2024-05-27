@@ -1,4 +1,6 @@
-use crate::{try_copy_recursive, try_delete, try_read_and_parse, try_rename, try_symlink, try_write_file};
+use crate::{
+    try_copy_recursive, try_delete, try_read_and_parse, try_rename, try_symlink, try_write_file,
+};
 
 use crate::dependency::Dependency;
 use crate::error::ConfigCliError;
@@ -92,7 +94,7 @@ pub fn add_config(
         return Err(ConfigCliError::InvalidConfigName(name));
     }
 
-    let link_string = theme_path + "/" + &name.clone();
+    let link_string = theme_path.clone() + "/" + &name.clone();
     let link_path = Path::new(&link_string);
 
     let new_conf = Config {
@@ -134,13 +136,12 @@ pub fn remove_config(name: String, theme: String) -> ConfigResult<()> {
     let mut all_configs: Vec<Config> = config_file.globals;
     all_configs.extend(config_file.device_bounds.into_iter().map(|x| x.1));
 
-    let config_to_remove: &Config = all_configs
-        .iter()
-        .filter(|conf| conf.name == name)
-        .last()
-        .ok_or::<ConfigCliError>(
-        ConfigCliError::InvalidConfigName(name)
-    )?;
+    let config_to_remove: &Config =
+        all_configs
+            .iter()
+            .filter(|conf| conf.name == name)
+            .last()
+            .ok_or::<ConfigCliError>(ConfigCliError::InvalidConfigName(name.clone()))?;
 
     try_delete!(config_to_remove.symlink.clone());
     try_copy_recursive!(
@@ -148,7 +149,7 @@ pub fn remove_config(name: String, theme: String) -> ConfigResult<()> {
         config_to_remove.symlink.clone()
     );
 
-    config_file_clone.globals.retain(|conf| conf.name != name);
+    config_file_clone.globals.retain(|conf| conf.name != name.clone());
     config_file_clone
         .device_bounds
         .retain(|conf| conf.1.name != name);
