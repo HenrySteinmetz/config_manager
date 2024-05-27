@@ -1,34 +1,33 @@
 use crate::config::{Config, ConfigFile};
-use crate::utils::{err, get_base_dir, ConfigResult};
+use crate::{try_read_and_parse, try_write_file};
+use crate::utils::{get_base_dir, ConfigResult};
+use crate::error::ConfigCliError;
 
 use std::io::Write;
-use std::path::Path;
 use std::process::Command;
 
-use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Dependency(String);
 
 impl TryFrom<String> for Dependency {
-    type Error = Box<dyn std::error::Error>;
+    type Error = ConfigCliError;
     fn try_from(value: String) -> ConfigResult<Self> {
-        let output = Command::new("yay")
-            .arg("-Ssq")
-            .arg(value.clone())
-            .output()?
-            .stdout;
-        let results: Vec<String> = std::str::from_utf8(&output)?
-            .to_owned()
-            .lines()
-            .map(|x| x.to_owned())
-            .collect();
+        let output = match Command::new("yay").arg("-Ssq").arg(value.clone()).output() {
+                Ok(cli) => cli.stdout,
+                Err(err) => return Err(ConfigCliError::ShellInitError(err))
+        };
+
+        let results: Vec<String> = match std::str::from_utf8(&output) {
+            Ok(s) => s.to_owned().lines().map(|x| x.to_owned()).collect(),
+            Err(err) => return Err(ConfigCliError::StringConversionError(err)),
+        };
 
         if results.contains(&value) {
             Ok(Dependency(value))
         } else {
-            err!("Couldn't find an exact match in the repositories!")
+            Err(ConfigCliError::NoPackageWithName(value))
         }
     }
 }
@@ -56,8 +55,7 @@ impl DependencyFile {
 
 pub fn remove_dependency(theme: String, dependency: String) -> ConfigResult<()> {
     let path = get_base_dir()? + &theme + "/dependencies.toml";
-    let file_contents: DependencyFile =
-        toml::from_str(std::str::from_utf8(&std::fs::read(path.clone())?)?)?;
+    let file_contents = try_read_and_parse!(path.clone(), DependencyFile);
 
     let mut all_dependencies = file_contents.globals.clone();
     let config_dependencies: Vec<Dependency> = file_contents
@@ -79,10 +77,7 @@ pub fn remove_dependency(theme: String, dependency: String) -> ConfigResult<()> 
             globals: file_contents.globals,
         };
 
-        let mut file_handle = std::fs::OpenOptions::new().write(true).open(path)?;
-        let string_contents = toml::to_string(&new_file_contents)?;
-        file_handle.write_all(string_contents.as_bytes())?;
-        file_handle.flush()?;
+        try_write_file!(path, &new_file_contents);
 
         Ok(())
     } else if all_dependencies.contains(&dependency) {
@@ -95,14 +90,11 @@ pub fn remove_dependency(theme: String, dependency: String) -> ConfigResult<()> 
                 .collect(),
         };
 
-        let mut file_handle = std::fs::OpenOptions::new().write(true).open(path)?;
-        let string_contents = toml::to_string(&new_file_contents)?;
-        file_handle.write_all(string_contents.as_bytes())?;
-        file_handle.flush()?;
+        try_write_file!(path, &new_file_contents);
 
         Ok(())
     } else {
-        err!("Couldn't find the dependency you were trying to remove!")
+        Err(ConfigCliError::InvalidConfigName(dependency.0))
     }
 }
 
@@ -112,8 +104,7 @@ pub fn add_dependency(
     dependency: String,
 ) -> ConfigResult<()> {
     let path = get_base_dir()? + &theme + "/dependencies.toml";
-    let mut file_contents: DependencyFile =
-        toml::from_str(std::str::from_utf8(&std::fs::read(path.clone())?)?)?;
+    let mut file_contents = try_read_and_parse!(path.clone(), DependencyFile);
     let dependencies = &mut file_contents.globals;
     let config_dependencies: Vec<DependencyWrapper> = file_contents
         .config_bounds
@@ -140,7 +131,7 @@ pub fn add_dependency(
     }
 
     if dependencies.contains(&dependency) {
-        return err!("Dependency was already present!");
+        return Err(ConfigCliError::InvalidDependencyName(dependency.0));
     }
 
     if config.is_some() {
@@ -151,10 +142,7 @@ pub fn add_dependency(
         file_contents.globals.push(dependency);
     }
 
-    let mut file_handle = std::fs::OpenOptions::new().write(true).open(path)?;
-    let string_contents = toml::to_string(&file_contents)?;
-    file_handle.write_all(string_contents.as_bytes())?;
-    file_handle.flush()?;
+    try_write_file!(path, &file_contents);
     Ok(())
 }
 
@@ -187,8 +175,7 @@ impl Into<DependencyWrapper> for (String, Dependency) {
 pub fn list_dependencies(theme: String, config_name: String) -> ConfigResult<Vec<String>> {
     let theme = get_base_dir()? + &theme + "/configs.toml";
 
-    let file_contents = std::fs::read(Path::new(&theme))?;
-    let config_file: ConfigFile = toml::from_str(std::str::from_utf8(&file_contents)?)?;
+    let config_file = try_read_and_parse!(theme, ConfigFile);
 
     let mut all_deps: Vec<Config> = config_file.globals;
     all_deps.extend(

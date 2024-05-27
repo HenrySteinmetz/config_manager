@@ -1,7 +1,8 @@
 use crate::config::{Config, ConfigFile};
 use crate::dependency::DependencyFile;
-use crate::utils::{copy_dir_all, err, get_base_dir, CurrentTheme};
-use crate::ConfigResult;
+use crate::error::ConfigCliError;
+use crate::utils::{copy_dir_all, get_base_dir, CurrentTheme};
+use crate::{try_copy_recursive, try_create_file, try_write_file, ConfigResult};
 
 use std::fs::File;
 use std::io::Write;
@@ -11,28 +12,34 @@ pub fn create_theme(name: String, base: Option<String>) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &name;
 
     if Path::new(&theme_path).exists() {
-        return err!("A theme with the same name already exists!");
+        return Err(ConfigCliError::InvalidThemeName(name));
     }
 
-    std::fs::create_dir(theme_path.clone())?;
+    match std::fs::create_dir(theme_path.clone()) {
+        Ok(_) => (),
+        Err(err) => return Err(ConfigCliError::FileCreationError(err))
+    }
 
     match base {
         Some(base) => {
-            for file in std::fs::read_dir(get_base_dir()? + &base)? {
-                copy_dir_all(file?.path(), theme_path.clone())?;
+            let read_dir = match std::fs::read_dir(get_base_dir()? + &base) {
+                Ok(dir) => dir,
+                Err(err) => return Err(ConfigCliError::FsReadError(err))
+            };
+            for file in read_dir {
+                let file = match file {
+                    Ok(file) => file,
+                    Err(err) => return Err(ConfigCliError::FsReadError(err))
+                };
+                try_copy_recursive!(file.path(), theme_path.clone());
             }
         }
         None => {
-            let mut dependency_file =
-                std::fs::File::create(theme_path.clone() + "/dependencies.toml")?;
-            let empty_dependency_file = DependencyFile::empty();
-            let string_dependency_file = toml::to_string(&empty_dependency_file)?;
-            dependency_file.write(string_dependency_file.as_bytes())?;
+            try_create_file!(theme_path.clone() + "/dependencies.toml");
+            try_write_file!(theme_path.clone() + "/dependencies.toml", &DependencyFile::empty());
 
-            let mut config_file = std::fs::File::create(theme_path + "/configs.toml")?;
-            let empty_config_file = ConfigFile::empty();
-            let string_config_file = toml::to_string(&empty_config_file)?;
-            config_file.write(string_config_file.as_bytes())?;
+            try_create_file!(theme_path.clone() + "/config.toml");
+            try_write_file!(theme_path.clone() + "/config.toml", &ConfigFile::empty());
         }
     }
     Ok(())
@@ -42,8 +49,17 @@ pub fn list_themes() -> ConfigResult<Vec<String>> {
     let mut ret: Vec<String> = vec![];
     let theme_path = get_base_dir()?;
 
-    for theme in std::fs::read_dir(theme_path)? {
-        let theme_path = theme?.path();
+    let read_dir = match std::fs::read_dir(theme_path) {
+        Ok(dir) => dir,
+        Err(err) => return Err(ConfigCliError::FsReadError(err))
+    };
+
+
+    for theme in read_dir {
+        let theme_path = match theme {
+            Ok(path) => path.path(),
+            Err(err) => return Err(ConfigCliError::FsReadError(err))
+        };
         if theme_path.clone().is_dir() {
             ret.push(theme_path.to_str().unwrap().to_owned());
         }

@@ -1,5 +1,8 @@
+use crate::{try_copy_recursive, try_delete, try_read_and_parse, try_rename, try_symlink, try_write_file};
+
 use crate::dependency::Dependency;
-use crate::utils::{copy_dir_all, err, get_base_dir, ConfigResult};
+use crate::error::ConfigCliError;
+use crate::utils::{copy_dir_all, get_base_dir, ConfigResult};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -30,8 +33,7 @@ impl ConfigFile {
 
 pub fn list_configs(theme: String, device: Option<String>) -> ConfigResult<Vec<Config>> {
     let theme = get_base_dir()? + &theme + "/configs.toml";
-    let file_contents = std::fs::read(Path::new(&theme))?;
-    let config_file: ConfigFile = toml::from_str(std::str::from_utf8(&file_contents)?)?;
+    let config_file = try_read_and_parse!(theme, ConfigFile);
 
     if device.is_some() {
         Ok(config_file
@@ -62,13 +64,12 @@ pub fn add_config(
     let theme_path = get_base_dir()? + &theme;
 
     if !Path::new(&theme_path).exists() {
-        return err!("Invalid theme name!");
+        return Err(ConfigCliError::InvalidThemeName(theme));
     }
 
     let config_file_path = theme_path.clone() + "/configs.toml";
-    let file_contents = std::fs::read(config_file_path.clone())?;
 
-    let config_file: ConfigFile = toml::from_str(std::str::from_utf8(&file_contents)?)?;
+    let config_file = try_read_and_parse!(config_file_path.clone(), ConfigFile);
     let mut config_file_clone = config_file.clone();
 
     let global_matching_configs: Vec<Config> = config_file
@@ -76,6 +77,7 @@ pub fn add_config(
         .into_iter()
         .filter(|conf| conf.name == name)
         .collect();
+
     let device_matching_configs: Vec<(String, Config)> = if device.is_some() {
         config_file
             .device_bounds
@@ -87,9 +89,7 @@ pub fn add_config(
     };
 
     if global_matching_configs.len() > 0 || device_matching_configs.len() > 0 {
-        return Err("A config with selected name already exists."
-            .to_owned()
-            .into());
+        return Err(ConfigCliError::InvalidConfigName(name));
     }
 
     let link_string = theme_path + "/" + &name.clone();
@@ -111,16 +111,10 @@ pub fn add_config(
         config_file_clone.globals.push(new_conf);
     }
 
-    std::fs::rename(file.clone(), link_path)?;
-    std::os::unix::fs::symlink(link_path, file)?;
+    try_rename!(file.clone(), link_path);
+    try_symlink!(link_path, file);
 
-    let mut file_handle = std::fs::OpenOptions::new()
-        .write(true)
-        .open(config_file_path)?;
-
-    let config_string = toml::to_string(&config_file_clone)?;
-    file_handle.write_all(config_string.as_bytes())?;
-    file_handle.flush()?;
+    try_write_file!(theme_path, &config_file_clone);
 
     Ok(())
 }
@@ -129,18 +123,13 @@ pub fn remove_config(name: String, theme: String) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &theme;
 
     if !Path::new(&theme_path).exists() {
-        return err!("Invalid theme name!");
+        return Err(ConfigCliError::InvalidThemeName(theme));
     }
 
     let config_file_path = theme_path.clone() + "/configs.toml";
-    let file_contents = std::fs::read(config_file_path.clone())?;
 
-    let config_file: ConfigFile = toml::from_str(std::str::from_utf8(&file_contents)?)?;
+    let config_file = try_read_and_parse!(config_file_path.clone(), ConfigFile);
     let mut config_file_clone = config_file.clone();
-
-    if !Path::new(&theme_path).exists() {
-        return Err("Invalid theme name!".to_owned().into());
-    }
 
     let mut all_configs: Vec<Config> = config_file.globals;
     all_configs.extend(config_file.device_bounds.into_iter().map(|x| x.1));
@@ -149,28 +138,22 @@ pub fn remove_config(name: String, theme: String) -> ConfigResult<()> {
         .iter()
         .filter(|conf| conf.name == name)
         .last()
-        .ok_or::<Box<dyn std::error::Error + 'static>>(
-        "Invalid config name!".to_owned().into(),
+        .ok_or::<ConfigCliError>(
+        ConfigCliError::InvalidConfigName(name)
     )?;
 
-    std::fs::remove_file(config_to_remove.symlink.clone())?;
-    copy_dir_all(
+    try_delete!(config_to_remove.symlink.clone());
+    try_copy_recursive!(
         config_to_remove.conf_location.clone(),
-        config_to_remove.symlink.clone(),
-    )?;
+        config_to_remove.symlink.clone()
+    );
 
     config_file_clone.globals.retain(|conf| conf.name != name);
     config_file_clone
         .device_bounds
         .retain(|conf| conf.1.name != name);
 
-    let mut file_handle = std::fs::OpenOptions::new()
-        .write(true)
-        .open(config_file_path)?;
-
-    let config_string = toml::to_string(&config_file_clone)?;
-    file_handle.write_all(config_string.as_bytes())?;
-    file_handle.flush()?;
+    try_write_file!(config_file_path, &config_file_clone);
 
     Ok(())
 }
