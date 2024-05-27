@@ -140,8 +140,7 @@ pub fn add_dependency(
     }
 
     if dependencies.contains(&dependency) {
-        println!("{}", "WARNING: Dependency was already present!".yellow());
-        return Ok(());
+        return err!("Dependency was already present!");
     }
 
     if config.is_some() {

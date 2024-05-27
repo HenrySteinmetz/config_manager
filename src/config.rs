@@ -1,5 +1,5 @@
 use crate::dependency::Dependency;
-use crate::utils::{err, get_base_dir, ConfigResult, copy_dir_all};
+use crate::utils::{copy_dir_all, err, get_base_dir, ConfigResult};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -44,10 +44,11 @@ pub fn list_configs(theme: String, device: Option<String>) -> ConfigResult<Vec<C
         let mut all_configs: Vec<Config> = config_file.globals;
         all_configs.extend(
             config_file
-               .device_bounds
-               .into_iter()
-               .map(|x| x.1)
-               .collect::<Vec<Config>>());
+                .device_bounds
+                .into_iter()
+                .map(|x| x.1)
+                .collect::<Vec<Config>>(),
+        );
         Ok(all_configs)
     }
 }
@@ -140,24 +141,28 @@ pub fn remove_config(name: String, theme: String) -> ConfigResult<()> {
     if !Path::new(&theme_path).exists() {
         return Err("Invalid theme name!".to_owned().into());
     }
-    
+
     let mut all_configs: Vec<Config> = config_file.globals;
-    all_configs.extend(
-        config_file
-           .device_bounds
-           .into_iter()
-           .map(|x| x.1));
+    all_configs.extend(config_file.device_bounds.into_iter().map(|x| x.1));
 
     let config_to_remove: &Config = all_configs
         .iter()
-        .filter(|conf| conf.name == name).last()
-        .ok_or::<Box<dyn std::error::Error + 'static>>("Invalid config name!".to_owned().into())?;
-    
+        .filter(|conf| conf.name == name)
+        .last()
+        .ok_or::<Box<dyn std::error::Error + 'static>>(
+        "Invalid config name!".to_owned().into(),
+    )?;
+
     std::fs::remove_file(config_to_remove.symlink.clone())?;
-    copy_dir_all(config_to_remove.conf_location.clone(), config_to_remove.symlink.clone())?;
+    copy_dir_all(
+        config_to_remove.conf_location.clone(),
+        config_to_remove.symlink.clone(),
+    )?;
 
     config_file_clone.globals.retain(|conf| conf.name != name);
-    config_file_clone.device_bounds.retain(|conf| conf.1.name != name);
+    config_file_clone
+        .device_bounds
+        .retain(|conf| conf.1.name != name);
 
     let mut file_handle = std::fs::OpenOptions::new()
         .write(true)

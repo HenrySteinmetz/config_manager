@@ -1,9 +1,10 @@
 mod cli;
 mod config;
 mod dependency;
+mod error;
+mod git;
 mod theme;
 mod utils;
-mod git;
 
 use cli::ConfigCli;
 use config::Config;
@@ -12,8 +13,8 @@ use utils::*;
 
 use config::{add_config, list_configs, remove_config};
 use dependency::{add_dependency, list_dependencies, remove_dependency};
-use theme::*;
 use git::*;
+use theme::*;
 
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -74,9 +75,9 @@ fn main() -> ConfigResult<()> {
             use cli::DependencyActions::*;
             let theme_name = get_current_theme()?;
             match action {
-                Remove {
-                    dependency_name,
-                } => CommandResult::AddRemove(remove_dependency(theme_name, dependency_name)),
+                Remove { dependency_name } => {
+                    CommandResult::AddRemove(remove_dependency(theme_name, dependency_name))
+                }
                 Add {
                     dependency_name,
                     config_name,
@@ -85,18 +86,18 @@ fn main() -> ConfigResult<()> {
                     config_name,
                     dependency_name,
                 )),
-                List {
-                    config_name,
-                } => CommandResult::DependencyThemeList(list_dependencies(config_name, theme_name)),
+                List { config_name } => {
+                    CommandResult::DependencyThemeList(list_dependencies(config_name, theme_name))
+                }
             }
         }
         Config { action, .. } => {
             use cli::ConfigActions::*;
             let theme_name = get_current_theme()?;
             match action {
-                Remove {
-                    config_name,
-                } => CommandResult::AddRemove(remove_config(config_name, theme_name)),
+                Remove { config_name } => {
+                    CommandResult::AddRemove(remove_config(config_name, theme_name))
+                }
                 Add {
                     config_name,
                     file,
@@ -107,9 +108,9 @@ fn main() -> ConfigResult<()> {
                     theme_name,
                     file.to_path_buf(),
                 )),
-                List {
-                    device_name,
-                } => CommandResult::ConfigList(list_configs(theme_name, device_name)),
+                List { device_name } => {
+                    CommandResult::ConfigList(list_configs(theme_name, device_name))
+                }
             }
         }
         Theme { action, .. } => {
@@ -117,11 +118,15 @@ fn main() -> ConfigResult<()> {
             match action {
                 Remove { name } => CommandResult::AddRemove(remove_theme(name)),
                 Create { name, base } => CommandResult::AddRemove(create_theme(name, base)),
-                Use { name, force, device } => CommandResult::AddRemove(use_theme(name, force, device)),
+                Use {
+                    name,
+                    force,
+                    device,
+                } => CommandResult::AddRemove(use_theme(name, force, device)),
                 List => CommandResult::DependencyThemeList(list_themes()),
             }
-        },
-        Git { action,.. } => {
+        }
+        Git { action, .. } => {
             use cli::GitActions::*;
             match action {
                 SetUrl { url } => CommandResult::AddRemove(set_url(url)),

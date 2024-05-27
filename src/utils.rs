@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 use std::path::Path;
-use serde::{Deserialize, Serialize};
 
 pub type ConfigResult<T> = Result<T, Box<dyn std::error::Error + 'static>>;
 
@@ -24,14 +24,16 @@ pub fn get_base_dir() -> ConfigResult<String> {
 
 #[derive(Serialize, Deserialize)]
 pub struct CurrentTheme {
-    pub current_theme: String
+    pub current_theme: String,
 }
 
 pub fn get_current_theme() -> ConfigResult<String> {
     let base_dir = get_base_dir()? + "current_theme.toml";
     if !Path::new(&base_dir).exists() {
         std::fs::File::create(&base_dir)?;
-        return err!("No Theme selected! Please use a theme or create a new one using the theme subcommand!");
+        return err!(
+            "No Theme selected! Please use a theme or create a new one using the theme subcommand!"
+        );
     }
     let file_raw = std::fs::read(base_dir)?;
     let file_contents = std::str::from_utf8(&file_raw)?;

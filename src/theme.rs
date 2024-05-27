@@ -55,8 +55,7 @@ pub fn list_themes() -> ConfigResult<Vec<String>> {
 pub fn remove_theme(name: String) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &name;
 
-    let config_file_contents =
-        std::fs::read(Path::new(&(theme_path.clone() + "configs.toml")))?;
+    let config_file_contents = std::fs::read(Path::new(&(theme_path.clone() + "configs.toml")))?;
     let configs_to_remove: ConfigFile =
         toml::from_str(std::str::from_utf8(&config_file_contents)?)?;
 
@@ -111,10 +110,16 @@ pub fn remove_theme(name: String) -> ConfigResult<()> {
 
 fn apply_config(config: &Config, force: &bool) -> ConfigResult<()> {
     if config.conf_location.is_file() && force == &false {
-       return err!(format!("{} is an already used file location. You can overwrite it with the --force flag.", config.conf_location.to_string_lossy())); 
+        return err!(format!(
+            "{} is an already used file location. You can overwrite it with the --force flag.",
+            config.conf_location.to_string_lossy()
+        ));
     }
     if config.conf_location.is_dir() && force == &false {
-       return err!(format!("{} is an already used directory location. You can overwrite it with the --force flag.", config.conf_location.to_string_lossy())); 
+        return err!(format!(
+            "{} is an already used directory location. You can overwrite it with the --force flag.",
+            config.conf_location.to_string_lossy()
+        ));
     }
     copy_dir_all(config.conf_location.clone(), config.symlink.clone())?;
     Ok(())
@@ -128,8 +133,12 @@ fn change_current_theme(name: String) -> ConfigResult<()> {
         File::create(current_theme_path.clone())?;
     }
 
-    let mut file = std::fs::OpenOptions::new().write(true).open(current_theme_path)?;
-    let contents = toml::to_string(&CurrentTheme { current_theme: name })?;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .open(current_theme_path)?;
+    let contents = toml::to_string(&CurrentTheme {
+        current_theme: name,
+    })?;
 
     file.write_all(contents.as_bytes())?;
     file.flush()?;
@@ -139,7 +148,7 @@ fn change_current_theme(name: String) -> ConfigResult<()> {
 
 pub fn use_theme(name: String, force: bool, device: Option<String>) -> ConfigResult<()> {
     let theme_path = get_base_dir()? + &name;
-    
+
     if !Path::new(&theme_path).exists() {
         return err!("Invalid theme name!");
     }
@@ -160,7 +169,7 @@ pub fn use_theme(name: String, force: bool, device: Option<String>) -> ConfigRes
             .iter()
             .filter(|x| x.0 == device.clone().unwrap())
             .map(|x| x.1.clone())
-            .collect(); 
+            .collect();
 
         for config in device_configs {
             apply_config(&config, &force)?;
