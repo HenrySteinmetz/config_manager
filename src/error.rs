@@ -14,6 +14,7 @@ pub enum ConfigCliError {
     StringConversionError(std::str::Utf8Error),
     // Cli Error
     ShellInitError(std::io::Error),
+    GitCommandError(String),
     // Internal error
     InvalidThemeName(String),
     InvalidConfigName(String),
@@ -41,6 +42,7 @@ impl std::fmt::Display for ConfigCliError {
             DeserializeError(err) => write!(f, "TOML Parse Error while deserializing: \n{}", err),
             StringConversionError(err) => write!(f, "Invalid String: \n{}", err),
             ShellInitError(err) => write!(f, "Failed to initialize shell: \n{}", err),
+            GitCommandError(err) => write!(f, "Git Command Error: \n{}", err),
             InvalidThemeName(err) => write!(f, "Invalid Theme Name:  \n{}", err),
             InvalidConfigName(err) => write!(f, "Invalid Config Name: \n{}", err),
             InvalidDependencyName(err) => write!(f, "Invalid Dependency Name: \n{}", err),
@@ -69,6 +71,7 @@ impl std::error::Error for ConfigCliError {
             DeserializeError(x) => Some(x),
             StringConversionError(x) => Some(x),
             ShellInitError(x) => Some(x),
+            GitCommandError(_) => None,
             InvalidThemeName(_) => None,
             InvalidConfigName(_) => None,
             InvalidDependencyName(_) => None,
