@@ -143,15 +143,23 @@ macro_rules! try_read_dir {
     }};
 }
 
+#[macro_export]
+macro_rules! try_git {
+    ($command: expr, $current_dir: expr) => {
+        match Command::new("sh").arg("-c").current_dir($current_dir).arg(format!(r#"git {}"#, $command)).output() {
+            Ok(out) => {
+                if out.stderr.len() > 0 {
+                    return Err(ConfigCliError::GitCommandError(std::str::from_utf8(&out.stderr).unwrap().to_owned()));
+                }
+            }
+            Err(err) => return Err(ConfigCliError::ShellInitError(err)),
+        }
+    };
+}
+
 // This allows the macros to be used out side of the file
-pub(crate) use try_copy_recursive;
 pub(crate) use try_create_file;
-pub(crate) use try_delete_recursive;
 pub(crate) use try_read_and_parse;
-pub(crate) use try_read_dir;
-pub(crate) use try_rename;
-pub(crate) use try_symlink;
-pub(crate) use try_write_file;
 
 pub fn get_current_theme() -> ConfigResult<String> {
     let base_dir = get_base_dir()? + "current_theme.toml";
