@@ -11,6 +11,27 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Dependency(String);
 
+impl Dependency {
+    pub fn install(&self) -> ConfigResult<()> {
+        let output = match Command::new("yay").arg("-Q").arg(self.0.clone()).output() {
+            Ok(cli) => cli,
+            Err(err) => return Err(ConfigCliError::ShellInitError(err)),
+        };
+        if output.status.code() == Some(0) {
+            return Ok(());
+        }
+        let install_output = match Command::new("yay").arg("-S").arg(self.0.clone()).output() {
+            Ok(cli) => cli,
+            Err(err) => return Err(ConfigCliError::ShellInitError(err)),
+        };
+
+        match install_output.status.code() {
+            Some(0) => Ok(()),
+            _ => Err(ConfigCliError::GitCommandError(install_output.status.to_string())),
+        }
+    }
+}
+
 impl TryFrom<String> for Dependency {
     type Error = ConfigCliError;
     fn try_from(value: String) -> ConfigResult<Self> {
@@ -40,8 +61,8 @@ impl Into<Dependency> for (String, Dependency) {
 
 #[derive(Serialize, Deserialize)]
 pub struct DependencyFile {
-    globals: Vec<Dependency>,
-    config_bounds: Vec<(String, Dependency)>,
+    pub globals: Vec<Dependency>,
+    pub config_bounds: Vec<(String, Dependency)>,
 }
 
 impl DependencyFile {

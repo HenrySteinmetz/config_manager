@@ -20,6 +20,11 @@ pub enum ConfigSubCommands {
         action: ConfigActions,
     },
 
+    Device {
+        #[command(subcommand)]
+        action: DeviceActions,
+    },
+
     Theme {
         #[command(subcommand)]
         action: ThemeActions,
@@ -64,6 +69,21 @@ pub enum ConfigActions {
     },
 }
 
+
+#[derive(Subcommand, Clone)]
+pub enum DeviceActions {
+    Remove {
+        name: String,
+    },
+    Add {
+        name: String,
+    },
+    Use {
+        name: String,
+    },
+    List,
+}
+
 #[derive(Subcommand, Clone)]
 pub enum ThemeActions {
     Remove {
@@ -88,6 +108,6 @@ pub enum ThemeActions {
 pub enum GitActions {
     SetUrl { url: String },
     InstallTheme { url: String },
-    Push,
+    Push { commit_message: Option<String> },
     Pull,
 }
