@@ -27,7 +27,9 @@ impl Dependency {
 
         match install_output.status.code() {
             Some(0) => Ok(()),
-            _ => Err(ConfigCliError::GitCommandError(install_output.status.to_string())),
+            _ => Err(ConfigCliError::GitCommandError(
+                install_output.status.to_string(),
+            )),
         }
     }
 }

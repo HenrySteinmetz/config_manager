@@ -81,10 +81,14 @@ macro_rules! try_rename {
 #[macro_export]
 macro_rules! try_write_file {
     ($location:expr, $content:expr) => {{
-        let mut file_handle = match std::fs::OpenOptions::new().write(true).open($location) {
-            Ok(f) => f,
-            Err(err) => return Err(ConfigCliError::FsWriteError(err)),
+        use std::fs::File;
+        use std::io::Write;
+
+        let mut file_handle = match File::options().write(true).open($location) {
+            Ok(file) => file,
+            Err(err) => return Err(ConfigCliError::FsReadError(err)),
         };
+
         let content_string = match toml::to_string($content) {
             Ok(s) => s,
             Err(err) => return Err(ConfigCliError::SerializeError(err)),
@@ -146,10 +150,17 @@ macro_rules! try_read_dir {
 #[macro_export]
 macro_rules! try_git {
     ($command: expr, $current_dir: expr) => {
-        match Command::new("sh").arg("-c").current_dir($current_dir).arg(format!(r#"git {}"#, $command)).output() {
+        match Command::new("sh")
+            .arg("-c")
+            .current_dir($current_dir)
+            .arg(format!(r#"git {}"#, $command))
+            .output()
+        {
             Ok(out) => {
                 if out.stderr.len() > 0 {
-                    return Err(ConfigCliError::GitCommandError(std::str::from_utf8(&out.stderr).unwrap().to_owned()));
+                    return Err(ConfigCliError::GitCommandError(
+                        std::str::from_utf8(&out.stderr).unwrap().to_owned(),
+                    ));
                 }
             }
             Err(err) => return Err(ConfigCliError::ShellInitError(err)),

@@ -6,7 +6,6 @@ use crate::dependency::Dependency;
 use crate::error::ConfigCliError;
 use crate::utils::{copy_dir_all, get_base_dir, ConfigResult};
 use serde::{Deserialize, Serialize};
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -149,7 +148,9 @@ pub fn remove_config(name: String, theme: String) -> ConfigResult<()> {
         config_to_remove.symlink.clone()
     );
 
-    config_file_clone.globals.retain(|conf| conf.name != name.clone());
+    config_file_clone
+        .globals
+        .retain(|conf| conf.name != name.clone());
     config_file_clone
         .device_bounds
         .retain(|conf| conf.1.name != name);
