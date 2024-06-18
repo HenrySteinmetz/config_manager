@@ -1,6 +1,18 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+pub mod git_actions;
+pub mod theme_actions;
+pub mod device_actions;
+pub mod config_actions;
+pub mod dependency_actions;
+
+use git_actions::GitActions;
+use theme_actions::ThemeActions;
+use device_actions::DeviceActions;
+use config_actions::ConfigActions;
+use dependency_actions::DependencyActions;
+
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 pub struct ConfigCli {

@@ -9,6 +9,7 @@ edition = "2021"
 clap = { version = "4.5.4", features = ["derive"] }
 colored = "2.1.0"
 git2 = "0.18.3"
+itertools = "0.13.0"
 serde = { version = "1.0.197", features = ["derive"] }
 tokio = { version = "1.37.0", features = ["full"]}
 toml = "0.8.12"

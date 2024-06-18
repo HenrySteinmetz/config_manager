@@ -4,6 +4,7 @@ mod dependency;
 mod device;
 mod error;
 mod git;
+mod print;
 mod theme;
 mod utils;
 
@@ -147,8 +148,7 @@ fn main() -> ConfigResult<()> {
             }
         }
     };
-
-    println!("{:?}", result);
+    result.print();
 
     Ok(())
 }
