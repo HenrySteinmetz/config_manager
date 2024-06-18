@@ -6,7 +6,7 @@ impl CommandResult {
         match self {
             AddRemove(result) => match result {
                 Ok(ok) => return (),
-                Err(err) => println!("{}", err.to_string())
+                Err(err) => println!("{}", err.to_string()),
             },
             DependencyThemeList(result) => match result {
                 Ok(ok) => {
@@ -14,7 +14,7 @@ impl CommandResult {
                         println!("{}", item);
                     }
                 }
-                Err(err) => println!("{}", err.to_string())
+                Err(err) => println!("{}", err.to_string()),
             },
             ConfigList(result) => match result {
                 Ok(ok) => {
@@ -22,8 +22,8 @@ impl CommandResult {
                         println!("{}", item.name);
                     }
                 }
-                Err(err) => println!("{}", err.to_string())
-            }
+                Err(err) => println!("{}", err.to_string()),
+            },
         }
     }
 }

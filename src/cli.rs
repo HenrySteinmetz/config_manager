@@ -1,17 +1,16 @@
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
 
-pub mod git_actions;
-pub mod theme_actions;
-pub mod device_actions;
 pub mod config_actions;
 pub mod dependency_actions;
+pub mod device_actions;
+pub mod git_actions;
+pub mod theme_actions;
 
-use git_actions::GitActions;
-use theme_actions::ThemeActions;
-use device_actions::DeviceActions;
-use config_actions::ConfigActions;
-use dependency_actions::DependencyActions;
+pub use config_actions::ConfigActions;
+pub use dependency_actions::DependencyActions;
+pub use device_actions::DeviceActions;
+pub use git_actions::GitActions;
+pub use theme_actions::ThemeActions;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -46,73 +45,4 @@ pub enum ConfigSubCommands {
         #[command(subcommand)]
         action: GitActions,
     },
-}
-
-#[derive(Subcommand, Clone)]
-pub enum DependencyActions {
-    Remove {
-        dependency_name: String,
-    },
-    Add {
-        dependency_name: String,
-        /// Links dependency to the config
-        config_name: Option<String>,
-    },
-    List {
-        /// Lists only the dependencies of the provided config
-        config_name: String,
-    },
-}
-
-#[derive(Subcommand, Clone)]
-pub enum ConfigActions {
-    /// Moves the original config back if no other theme uses a config with the same name
-    Remove {
-        config_name: String,
-    },
-    /// Moves the original config file while replacing it with a symlink
-    Add {
-        config_name: String,
-        file: PathBuf,
-        device_name: Option<String>,
-    },
-    List {
-        device_name: Option<String>,
-    },
-}
-
-#[derive(Subcommand, Clone)]
-pub enum DeviceActions {
-    Remove { name: String },
-    Add { name: String },
-    Use { name: String },
-    List,
-}
-
-#[derive(Subcommand, Clone)]
-pub enum ThemeActions {
-    Remove {
-        name: String,
-    },
-    Create {
-        name: String,
-        /// Creates a new Theme by copying the provided theme as a base
-        base: Option<String>,
-    },
-    /// Links all the used config files to the according folders
-    Use {
-        name: String,
-        #[arg(short, long, default_value_t = false)]
-        force: bool,
-        device: Option<String>,
-    },
-    List,
-}
-
-#[derive(Subcommand, Clone)]
-pub enum GitActions {
-    SetUrl { url: String },
-    InstallTheme { url: String },
-    Push { commit_message: Option<String> },
-    Pull,
 }
