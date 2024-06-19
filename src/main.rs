@@ -15,7 +15,7 @@ use utils::*;
 
 use config::{add_config, list_configs, remove_config};
 use dependency::{add_dependency, list_dependencies, remove_dependency};
-use device::{add_device, list_devices, remove_device, use_device};
+use device::{list_devices, remove_device, use_device};
 use git::*;
 use theme::*;
 
@@ -120,7 +120,6 @@ fn main() -> ConfigResult<()> {
             use cli::DeviceActions::*;
             match action {
                 Remove { name } => CommandResult::AddRemove(remove_device(name)),
-                Add { name } => CommandResult::AddRemove(add_device(name)),
                 Use { name } => CommandResult::AddRemove(use_device(name)),
                 List => CommandResult::DependencyThemeList(list_devices()),
             }

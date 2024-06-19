@@ -5,7 +5,7 @@ impl CommandResult {
         use CommandResult::*;
         match self {
             AddRemove(result) => match result {
-                Ok(ok) => return (),
+                Ok(_) => return (),
                 Err(err) => println!("{}", err.to_string()),
             },
             DependencyThemeList(result) => match result {

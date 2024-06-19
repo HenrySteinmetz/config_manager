@@ -13,17 +13,18 @@ pub fn install_theme(url: String) -> ConfigResult<()> {
     Ok(())
 }
 
-pub fn git_init(url: String) -> ConfigResult<()> {
+/*
+fn git_init(url: String) -> ConfigResult<()> {
     let theme_dir = get_base_dir()? + &get_current_theme()?;
     try_git!("init", &theme_dir);
     try_git!("remote add origin ".to_owned() + &url, &theme_dir);
     Ok(())
 }
+*/
 
 pub fn set_url(url: String) -> ConfigResult<()> {
     let theme_dir = get_base_dir()? + &get_current_theme()?;
     try_git!("remote set-url origin ".to_owned() + &url, &theme_dir);
-
     Ok(())
 }
 
@@ -32,7 +33,6 @@ pub fn pull() -> ConfigResult<()> {
     Ok(())
 }
 
-// TODO!
 pub fn push(commit_message: Option<String>) -> ConfigResult<()> {
     let theme_dir = get_base_dir()? + &get_current_theme()?;
     try_git!("add .", &theme_dir);
